@@ -1,4 +1,5 @@
 // Import required modules
+const mongo = require('mongodb');
 const express = require('express');
 const bodyParser = require('body-parser');
 const passport = require('passport');
@@ -10,6 +11,9 @@ const flash = require('connect-flash');
 
 // Initialize Express app
 const app = express();
+const mongoInstances = {};
+
+app.set('view engine', 'ejs');
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -24,7 +28,7 @@ app.use(passport.session());
 app.use(flash()); // Add connect-flash middleware
 
 // Connect to MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/data', {
+mongoose.connect('mongodb://127.0.0.1:27017/raw', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 });
@@ -127,6 +131,7 @@ app.get('/login', (req, res) => {
 
 // Database Management Routes
 
+
 // Route to add a new MongoDB instance
 app.post('/add-instance', (req, res) => {
     const { instanceName, connectionString } = req.body;
@@ -141,7 +146,7 @@ app.post('/add-instance', (req, res) => {
     res.json({ message: `${instanceName} instance added successfully` });
 });
 
-// Route to display the list of connected instances and their information
+//  instances and their information
 app.get('/instances', async (req, res) => {
     try {
         const instanceInfo = [];
@@ -166,18 +171,24 @@ app.get('/instances', async (req, res) => {
 app.post('/create-database/:instanceName', async (req, res) => {
     const { instanceName } = req.params;
     const { databaseName } = req.body;
+    console.log(instanceName);
+    console.log(databaseName);
     try {
+        // Check if the instance exists in mongoInstances
+        if (!mongoInstances[instanceName]) {
+            return res.status(404).json({ message: 'Instance not found' });
+        }
+
         const db = mongoInstances[instanceName];
-        await db.db(databaseName).createCollection('entries');
+        await db.createCollection(databaseName);
         res.json({ message: `Database ${databaseName} created successfully` });
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
-
 // Route to add an entry to a database
-app.post('/add-entry/:instanceName/:databaseName', async (req, res) => {
+app.post('/add-entry/:admin/:databaseName', async (req, res) => {
     const { instanceName, databaseName } = req.params;
     const { entry } = req.body;
     try {
